@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
+    "postinstall": "prisma generate",
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -31,6 +32,7 @@
     "@auth/pg-adapter": "^1.10.0",
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@prisma/client": "^6.16.3",
     "@supabase/supabase-js": "^2.58.0",
     "@types/nodemailer": "^7.0.2",
     "@types/pg": "^8.15.5",
@@ -43,6 +45,7 @@
     "next-auth": "^4.24.11",
     "nodemailer": "^6.10.1",
     "pg": "^8.16.3",
+    "prisma": "^6.16.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tailwind-merge": "^3.3.1"

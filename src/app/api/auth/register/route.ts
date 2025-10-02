@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@vercel/postgres';
+import { prisma } from '../../../../lib/prisma';
 import { hashPassword } from '../../../../lib/auth';
 import { RegisterData, Domain } from '../../../../lib/types';
 
@@ -89,42 +89,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = createClient();
-    await client.connect();
-
-    try {
-      // Check if user already exists
-      const existingUser = await client.sql`
-        SELECT id FROM users 
-        WHERE email = ${email} OR username = ${username}
-      `;
-
-      if (existingUser.rows.length > 0) {
-        await client.end();
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: { 
-              code: 'USER_EXISTS', 
-              message: 'User with this email or username already exists' 
-            } 
-          },
-          { status: 409 }
-        );
+    // Check if user already exists
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: email },
+          { username: username }
+        ]
       }
+    });
 
-      // Hash password
-      const passwordHash = await hashPassword(password);
+    if (existingUser) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            code: 'USER_EXISTS', 
+            message: 'User with this email or username already exists' 
+          } 
+        },
+        { status: 409 }
+      );
+    }
 
-      // Create user
-      const result = await client.sql`
-        INSERT INTO users (username, email, password_hash, domain, role, xp, level, is_active, email_verified)
-        VALUES (${username}, ${email}, ${passwordHash}, ${domain}, 'member', 0, 1, true, false)
-        RETURNING id, username, email, domain, role, xp, level, created_at
-      `;
+    // Hash password
+    const passwordHash = await hashPassword(password);
 
-      const newUser = result.rows[0];
-      await client.end();
+    // Create user
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        email,
+        passwordHash,
+        domain,
+        role: 'member',
+        xp: 0,
+        level: 1,
+        isActive: true,
+        emailVerified: false
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        domain: true,
+        role: true,
+        xp: true,
+        level: true,
+        createdAt: true
+      }
+    });
 
     return NextResponse.json(
       {
@@ -138,17 +152,13 @@ export async function POST(request: NextRequest) {
             role: newUser.role,
             xp: newUser.xp,
             level: newUser.level,
-            created_at: newUser.created_at
+            createdAt: newUser.createdAt
           }
         },
         timestamp: new Date().toISOString()
       },
       { status: 201 }
     );
-    } catch (innerError) {
-      await client.end();
-      throw innerError;
-    }
 
   } catch (error) {
     console.error('Registration error:', error);
