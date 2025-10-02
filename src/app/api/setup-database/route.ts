@@ -1,21 +1,42 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Run Prisma migrations
-    const { stdout, stderr } = await execAsync('npx prisma db push --skip-generate');
-    
-    console.log('Prisma migration output:', stdout);
-    if (stderr) console.error('Prisma migration errors:', stderr);
+    // Create users table using raw SQL
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        domain VARCHAR(50) NOT NULL,
+        role VARCHAR(20) DEFAULT 'member',
+        xp INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        avatar_url TEXT,
+        bio TEXT,
+        is_active BOOLEAN DEFAULT true,
+        email_verified BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
+    // Create indexes
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_users_domain ON users(domain)`;
+
+    // Test that we can query the table
+    const userCount = await prisma.user.count();
 
     return NextResponse.json({
       success: true,
-      message: 'Database setup complete! All tables created successfully.',
-      output: stdout
+      message: 'Database setup complete! Users table created successfully.',
+      tables: ['users'],
+      indexes: ['idx_users_email', 'idx_users_username', 'idx_users_domain'],
+      userCount
     });
 
   } catch (error: any) {
@@ -24,8 +45,7 @@ export async function GET() {
     return NextResponse.json({
       success: false,
       error: error.message,
-      details: 'Failed to set up database. Check logs for more information.',
-      stderr: error.stderr
+      details: 'Failed to set up database. Check if tables already exist or if there are permission issues.'
     }, { status: 500 });
   }
 }
