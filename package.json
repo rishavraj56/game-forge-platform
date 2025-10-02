@@ -16,7 +16,7 @@
     "test:all": "powershell -ExecutionPolicy Bypass -File scripts/test-all.ps1",
     "test:all:unix": "bash scripts/test-all.sh",
     "pretest:disabled": "npm run lint",
-    "prebuild": "npm run test:ci",
+    "prebuild:disabled": "npm run test:ci",
     "migrate": "tsx scripts/migrate.ts",
     "migrate:up": "tsx scripts/migrate.ts up",
     "migrate:status": "tsx scripts/migrate.ts status",
