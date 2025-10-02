@@ -261,6 +261,12 @@ export class NotificationService {
    */
   private static async sendRealtimeNotification(notification: Notification): Promise<void> {
     try {
+      // Skip if Supabase is not configured
+      if (!supabaseAdmin) {
+        console.log('Supabase not configured, skipping real-time notification');
+        return;
+      }
+
       const { error } = await supabaseAdmin
         .channel(`notifications-${notification.userId}`)
         .send({

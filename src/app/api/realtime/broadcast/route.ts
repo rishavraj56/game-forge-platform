@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if Supabase is available
+    if (!supabaseAdmin) {
+      console.warn('Supabase not configured, real-time features disabled');
+      return NextResponse.json({ 
+        success: true, 
+        warning: 'Real-time features are not configured' 
+      });
+    }
+
     // Broadcast the event using Supabase
     const { error } = await supabaseAdmin
       .channel(channel)
@@ -81,6 +90,11 @@ export async function broadcastActivity(activity: {
   metadata?: Record<string, any>;
 }) {
   try {
+    if (!supabaseAdmin) {
+      console.log('Supabase not configured, skipping activity broadcast');
+      return;
+    }
+
     const { error } = await supabaseAdmin
       .channel('activity-feed')
       .send({
@@ -112,6 +126,11 @@ export async function broadcastLeaderboardUpdate(update: {
   type: 'weekly' | 'all_time';
 }) {
   try {
+    if (!supabaseAdmin) {
+      console.log('Supabase not configured, skipping leaderboard broadcast');
+      return;
+    }
+
     const { error } = await supabaseAdmin
       .channel('leaderboard-updates')
       .send({

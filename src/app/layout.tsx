@@ -52,34 +52,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <head>
-        {/* Preload critical fonts */}
-        <link
-          rel="preload"
-          href="/fonts/geist-sans.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        {/* Skip link for keyboard navigation */}
-        <style jsx>{`
-          .skip-link {
-            position: absolute;
-            top: -40px;
-            left: 6px;
-            background: #000;
-            color: #fff;
-            padding: 8px;
-            text-decoration: none;
-            border-radius: 4px;
-            z-index: 9999;
-            transition: top 0.3s;
-          }
-          .skip-link:focus {
-            top: 6px;
-          }
-        `}</style>
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
@@ -107,113 +79,29 @@ export default function RootLayout({
           </AppProviders>
         </ErrorBoundary>
 
-        {/* Focus indicator styles */}
-        <style jsx global>{`
-          /* Enhanced focus indicators */
-          *:focus {
-            outline: 2px solid hsl(var(--primary));
-            outline-offset: 2px;
-          }
-
-          /* Remove default focus for mouse users */
-          .js-focus-visible *:focus:not(.focus-visible) {
-            outline: none;
-          }
-
-          /* Ensure focus is visible for keyboard users */
-          .focus-visible {
-            outline: 2px solid hsl(var(--primary)) !important;
-            outline-offset: 2px !important;
-          }
-
-          /* High contrast mode support */
-          @media (prefers-contrast: high) {
-            * {
-              border-color: ButtonText;
-            }
-            
-            button, input, select, textarea {
-              border: 1px solid ButtonText;
-            }
-          }
-
-          /* Reduced motion support */
-          @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-              animation-duration: 0.01ms !important;
-              animation-iteration-count: 1 !important;
-              transition-duration: 0.01ms !important;
-              scroll-behavior: auto !important;
-            }
-          }
-
-          /* Screen reader only class */
-          .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-          }
-
-          /* Focus visible when needed */
-          .sr-only.focus:focus,
-          .sr-only:focus {
-            position: static;
-            width: auto;
-            height: auto;
-            padding: inherit;
-            margin: inherit;
-            overflow: visible;
-            clip: auto;
-            white-space: inherit;
-          }
-        `}</style>
-
         {/* Focus management script */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Add focus-visible polyfill behavior
               (function() {
                 var hadKeyboardEvent = true;
-                var keyboardThrottleTimeout = 100;
-                var keyboardThrottleTimeoutID = 0;
-
-                function onPointerDown() {
-                  hadKeyboardEvent = false;
-                }
-
+                function onPointerDown() { hadKeyboardEvent = false; }
                 function onKeyDown(e) {
-                  if (e.metaKey || e.altKey || e.ctrlKey) {
-                    return;
-                  }
+                  if (e.metaKey || e.altKey || e.ctrlKey) return;
                   hadKeyboardEvent = true;
                 }
-
                 function onFocus(e) {
                   if (hadKeyboardEvent || e.target.matches(':focus-visible')) {
                     e.target.classList.add('focus-visible');
                   }
                 }
-
-                function onBlur(e) {
-                  e.target.classList.remove('focus-visible');
-                }
-
+                function onBlur(e) { e.target.classList.remove('focus-visible'); }
                 document.addEventListener('keydown', onKeyDown, true);
                 document.addEventListener('mousedown', onPointerDown, true);
                 document.addEventListener('pointerdown', onPointerDown, true);
                 document.addEventListener('touchstart', onPointerDown, true);
                 document.addEventListener('focus', onFocus, true);
                 document.addEventListener('blur', onBlur, true);
-
                 document.body.classList.add('js-focus-visible');
               })();
             `,

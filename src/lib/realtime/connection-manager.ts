@@ -1,5 +1,4 @@
-import { supabase, type RealtimeChannel, type ConnectionStatus } from '../supabase';
-import { RealtimeChannelSendResponse } from '@supabase/supabase-js';
+import { supabase, type RealtimeChannel, type ConnectionStatus, isSupabaseAvailable } from '../supabase';
 
 export class RealtimeConnectionManager {
   private channels: Map<string, RealtimeChannel> = new Map();
@@ -8,15 +7,23 @@ export class RealtimeConnectionManager {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // Start with 1 second
   private statusCallbacks: Set<(status: ConnectionStatus) => void> = new Set();
+  private isEnabled: boolean;
 
   constructor() {
-    this.setupConnectionMonitoring();
+    this.isEnabled = isSupabaseAvailable();
+    if (this.isEnabled) {
+      this.setupConnectionMonitoring();
+    } else {
+      console.warn('Supabase not configured. Real-time features are disabled.');
+    }
   }
 
   /**
    * Set up connection monitoring and auto-reconnection
    */
   private setupConnectionMonitoring() {
+    if (!supabase) return;
+
     // Monitor connection status changes
     supabase.realtime.onOpen(() => {
       this.connectionStatus = 'OPEN';
@@ -33,7 +40,7 @@ export class RealtimeConnectionManager {
       this.handleReconnection();
     });
 
-    supabase.realtime.onError((error) => {
+    supabase.realtime.onError((error: Error) => {
       this.connectionStatus = 'ERROR';
       this.notifyStatusChange('ERROR');
       console.error('Supabase realtime connection error:', error);
@@ -58,7 +65,7 @@ export class RealtimeConnectionManager {
     setTimeout(() => {
       this.connectionStatus = 'CONNECTING';
       this.notifyStatusChange('CONNECTING');
-      
+
       // Resubscribe to all existing channels
       this.resubscribeChannels();
     }, delay);
@@ -68,14 +75,16 @@ export class RealtimeConnectionManager {
    * Resubscribe to all existing channels after reconnection
    */
   private resubscribeChannels() {
+    if (!supabase) return;
+
     const channelNames = Array.from(this.channels.keys());
-    
+
     channelNames.forEach(channelName => {
       const channel = this.channels.get(channelName);
       if (channel) {
         // Remove the old channel
         supabase.removeChannel(channel);
-        
+
         // Create a new channel with the same name
         // Note: The specific subscription logic will be handled by the event handlers
         console.log(`Resubscribing to channel: ${channelName}`);
@@ -86,7 +95,12 @@ export class RealtimeConnectionManager {
   /**
    * Subscribe to a real-time channel
    */
-  public subscribe(channelName: string): RealtimeChannel {
+  public subscribe(channelName: string): RealtimeChannel | null {
+    if (!this.isEnabled || !supabase) {
+      console.warn('Real-time features are disabled');
+      return null;
+    }
+
     // Remove existing channel if it exists
     if (this.channels.has(channelName)) {
       const existingChannel = this.channels.get(channelName)!;
@@ -98,7 +112,7 @@ export class RealtimeConnectionManager {
     this.channels.set(channelName, channel);
 
     // Subscribe to the channel
-    channel.subscribe((status) => {
+    channel.subscribe((status: string) => {
       console.log(`Channel ${channelName} subscription status:`, status);
     });
 
@@ -110,8 +124,8 @@ export class RealtimeConnectionManager {
    */
   public unsubscribe(channelName: string): Promise<'ok' | 'timed out' | 'error'> {
     const channel = this.channels.get(channelName);
-    
-    if (channel) {
+
+    if (channel && supabase) {
       this.channels.delete(channelName);
       return supabase.removeChannel(channel);
     }
@@ -131,7 +145,7 @@ export class RealtimeConnectionManager {
    */
   public onStatusChange(callback: (status: ConnectionStatus) => void): () => void {
     this.statusCallbacks.add(callback);
-    
+
     // Return unsubscribe function
     return () => {
       this.statusCallbacks.delete(callback);
@@ -162,7 +176,9 @@ export class RealtimeConnectionManager {
 
     return Promise.all(unsubscribePromises).then(() => {
       // Disconnect from Supabase
-      supabase.realtime.disconnect();
+      if (supabase) {
+        supabase.realtime.disconnect();
+      }
       this.connectionStatus = 'CLOSED';
       this.notifyStatusChange('CLOSED');
     });
