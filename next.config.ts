@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     // Enable optimized package imports
     optimizePackageImports: ['@heroicons/react', 'lucide-react', 'date-fns'],
     // Note: PPR (Partial Prerendering) requires Next.js canary version
-    // ppr: true, // Disabled for stable Next.js version
+    // ppr: true, // Disabled for stable Next.js version compatibility
   },
 
   // Compression and optimization
