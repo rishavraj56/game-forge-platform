@@ -58,14 +58,28 @@ export default function LoginPage() {
     setSubmitError('');
     
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      console.log('Login data:', formData);
-      // TODO: Redirect to Main Anvil dashboard
-      alert('Login successful! (This is a mock implementation)');
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Login failed');
+      }
+
+      // Login successful - redirect to Main Anvil
+      window.location.href = '/main-anvil';
     } catch (error) {
       console.error('Login failed:', error);
-      setSubmitError('Invalid email or password. Please check your credentials and try again.');
+      setSubmitError(error instanceof Error ? error.message : 'Invalid email or password. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }

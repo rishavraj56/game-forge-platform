@@ -91,14 +91,30 @@ export default function RegisterPage() {
     setSubmitError('');
     
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log('Registration data:', formData);
-      // TODO: Redirect to Main Anvil dashboard
-      alert('Registration successful! (This is a mock implementation)');
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          domain: formData.domain,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Registration failed');
+      }
+
+      // Registration successful - redirect to login
+      window.location.href = '/auth/login?registered=true';
     } catch (error) {
       console.error('Registration failed:', error);
-      setSubmitError('Registration failed. This email or username may already be in use. Please try again.');
+      setSubmitError(error instanceof Error ? error.message : 'Registration failed. This email or username may already be in use. Please try again.');
     } finally {
       setIsLoading(false);
     }
