@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '../../../../lib/db';
+import { createClient } from '@vercel/postgres';
 import { hashPassword } from '../../../../lib/auth';
 import { RegisterData, Domain } from '../../../../lib/types';
 
@@ -89,36 +89,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
-    const existingUser = await db`
-      SELECT id FROM users 
-      WHERE email = ${email} OR username = ${username}
-    `;
+    const client = createClient();
+    await client.connect();
 
-    if (existingUser.rows.length > 0) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: { 
-            code: 'USER_EXISTS', 
-            message: 'User with this email or username already exists' 
-          } 
-        },
-        { status: 409 }
-      );
-    }
+    try {
+      // Check if user already exists
+      const existingUser = await client.sql`
+        SELECT id FROM users 
+        WHERE email = ${email} OR username = ${username}
+      `;
 
-    // Hash password
-    const passwordHash = await hashPassword(password);
+      if (existingUser.rows.length > 0) {
+        await client.end();
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: { 
+              code: 'USER_EXISTS', 
+              message: 'User with this email or username already exists' 
+            } 
+          },
+          { status: 409 }
+        );
+      }
 
-    // Create user
-    const result = await db`
-      INSERT INTO users (username, email, password_hash, domain, role, xp, level, is_active, email_verified)
-      VALUES (${username}, ${email}, ${passwordHash}, ${domain}, 'member', 0, 1, true, false)
-      RETURNING id, username, email, domain, role, xp, level, created_at
-    `;
+      // Hash password
+      const passwordHash = await hashPassword(password);
 
-    const newUser = result.rows[0];
+      // Create user
+      const result = await client.sql`
+        INSERT INTO users (username, email, password_hash, domain, role, xp, level, is_active, email_verified)
+        VALUES (${username}, ${email}, ${passwordHash}, ${domain}, 'member', 0, 1, true, false)
+        RETURNING id, username, email, domain, role, xp, level, created_at
+      `;
+
+      const newUser = result.rows[0];
+      await client.end();
 
     return NextResponse.json(
       {
@@ -139,6 +145,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
+    } catch (innerError) {
+      await client.end();
+      throw innerError;
+    }
 
   } catch (error) {
     console.error('Registration error:', error);

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { createClient } from '@vercel/postgres';
 
 export async function GET() {
+  const client = createClient();
+  
   try {
+    await client.connect();
+
     // Create users table
-    await sql`
+    await client.sql`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         username VARCHAR(50) UNIQUE NOT NULL,
@@ -24,9 +28,11 @@ export async function GET() {
     `;
 
     // Create indexes
-    await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_users_domain ON users(domain)`;
+    await client.sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
+    await client.sql`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`;
+    await client.sql`CREATE INDEX IF NOT EXISTS idx_users_domain ON users(domain)`;
+
+    await client.end();
 
     return NextResponse.json({
       success: true,
@@ -37,6 +43,12 @@ export async function GET() {
 
   } catch (error: any) {
     console.error('Database setup error:', error);
+    
+    try {
+      await client.end();
+    } catch (e) {
+      // Ignore cleanup errors
+    }
     
     return NextResponse.json({
       success: false,
